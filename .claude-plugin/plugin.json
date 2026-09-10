@@ -1,0 +1,21 @@
+{
+  "name": "playkit-js-plugin-builder",
+  "displayName": "PlayKit-JS Plugin Builder",
+  "description": "Builds compliant, tested, documented, secure Kaltura PlayKit-JS player plugins from one prompt. Reuses Kaltura Unisphere runtimes first instead of rebuilding them.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Kaltura Inc.",
+    "url": "https://github.com/kaltura"
+  },
+  "homepage": "https://github.com/kaltura/playkit-js-plugin-builder",
+  "repository": "https://github.com/kaltura/playkit-js-plugin-builder",
+  "license": "MIT",
+  "keywords": [
+    "kaltura",
+    "playkit-js",
+    "player-plugin",
+    "unisphere",
+    "video"
+  ],
+  "skills": "./skills/"
+}

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>playkit-js-plugin-template e2e</title>
+  <!--
+    Fallback only: the primary enforcing CSP is the response header e2e/server.js sets on every
+    response (reference/security-checklist.md §3: "enforce it in the demo and e2e pages ... the
+    test run must fail on any securitypolicyviolation event, not just log it"). Kept here too so
+    the page is still enforcing if ever opened without the dev server.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'" />
+  <style>
+    html, body { margin: 0; padding: 0; }
+    #player-placeholder { width: 640px; height: 360px; }
+  </style>
+</head>
+<body>
+  <div id="player-placeholder"></div>
+
+  <script>
+    // Registered before any player/plugin script loads, per reference/testing-strategy.md's
+    // Trusted Types e2e recipe: on the first violation, record it; the spec fails the test on any
+    // non-empty result instead of just logging it.
+    window.__cspViolations = [];
+    document.addEventListener('securitypolicyviolation', function (event) {
+      window.__cspViolations.push({
+        sourceFile: event.sourceFile,
+        sample: event.sample,
+        violatedDirective: event.violatedDirective,
+        blockedURI: event.blockedURI
+      });
+    });
+    window.__setupError = null;
+  </script>
+
+  <!-- Pinned to the exact installed version (package.json devDependency); never @latest in e2e. -->
+  <script src="/node_modules/@playkit-js/kaltura-player-js/dist/kaltura-ovp-player.js"></script>
+  <!-- The plugin under test, built locally via `npm run build`. -->
+  <script src="/dist/playkit-js-plugin-template.js"></script>
+
+  <script>
+    (function () {
+      try {
+        var kalturaPlayer = KalturaPlayer.setup({
+          targetId: 'player-placeholder',
+          provider: {
+            // Mock provider, no Kaltura network dependency (reference/testing-strategy.md,
+            // "Default to the mock provider").
+            partnerId: -1,
+            env: {
+              cdnUrl: 'http://mock-cdn',
+              serviceUrl: 'http://mock-api'
+            }
+          },
+          plugins: {
+            pluginTemplate: {}
+          }
+        });
+        window.__player = kalturaPlayer;
+
+        kalturaPlayer.setMedia({
+          sources: {
+            id: 'e2e-entry-1',
+            type: 'Vod',
+            duration: 5,
+            dvr: false,
+            progressive: [
+              {
+                id: 'e2e-source-1',
+                mimetype: 'video/mp4',
+                url: '/media/video.mp4'
+              }
+            ],
+            dash: [],
+            hls: [],
+            image: [],
+            document: [],
+            metadata: {}
+          }
+        });
+        // setMedia() only configures the player; it does not itself trigger engine attach/load --
+        // KalturaPlayer.setMedia() only calls this.configure(...); load() is a separate, explicit
+        // public method (reference/testing-strategy.md). Without this call the video element never
+        // gets a src and player.ready() never resolves.
+        kalturaPlayer.load();
+      } catch (caught) {
+        window.__setupError = String((caught && caught.stack) || caught);
+      }
+    })();
+  </script>
+</body>
+</html>

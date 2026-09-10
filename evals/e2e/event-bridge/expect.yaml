@@ -1,0 +1,49 @@
+# Code-graded checks for the event-bridge e2e case.
+# Grader: evals/grade.py e2e --case-dir evals/e2e/event-bridge --workdir <generated-repo>
+# All paths below are relative to the generated plugin repo root (the workdir), not this file.
+
+case: event-bridge
+description: >
+  Analytics-to-endpoint plugin with no UI. Must use eventManager.listen and never addComponent.
+
+files_exist:
+  - PLAN.md
+  - package.json
+  - src/index.ts
+
+grep_must:
+  - file_glob: "PLAN.md"
+    pattern: "[Uu]nisphere:\\**\\s*no [Uu]nisphere runtime covers this"
+  - file_glob: "PLAN.md"
+    pattern: "event-bridge"
+  - file_glob: "src/**/*.ts"
+    pattern: "this\\.eventManager\\.listen\\("
+    note: "Cleanup on destroy() only reaches listeners added through eventManager, never a raw player listener."
+  - file_glob: "src/**/*.ts"
+    pattern: "isValid\\(\\)\\s*[:{]"
+  - file_glob: "src/**/*.ts"
+    pattern: "super\\.destroy\\(\\)"
+  - file_glob: "src/**/*.ts"
+    pattern: "catch"
+    note: "A failed request to the external endpoint is caught and downgraded, not left to throw."
+  - file_glob: "test/**/*.test.ts"
+    pattern: "disable"
+
+grep_must_not:
+  - file_glob: "src/**/*.ts"
+    pattern: "ui\\.addComponent\\("
+    note: "Event-bridge plugins render nothing; addComponent anywhere in src/ is a branch mismatch."
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.addEventListener\\("
+    note: "Must go through this.eventManager.listen so destroy() cleanup reaches it."
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.Event\\.Error\\b"
+  - file_glob: "src/**/*.ts"
+    pattern: "\\beval\\("
+
+commands_exit_0:
+  - "npm ci"
+  - "npm run build"
+  - "npm run lint"
+  - "npm test"
+  - "npm run test:e2e"

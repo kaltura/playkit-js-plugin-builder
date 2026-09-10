@@ -1,0 +1,63 @@
+# Code-graded checks for the unisphere-consumer e2e case.
+# Grader: evals/grade.py e2e --case-dir evals/e2e/unisphere-consumer --workdir <generated-repo>
+# All paths below are relative to the generated plugin repo root (the workdir), not this file.
+
+case: unisphere-consumer
+description: >
+  "Add the AI video summary side panel" must resolve to the Unisphere consumer branch and build a
+  thin plugin on @playkit-js/unisphere-service, not a rebuilt summary feature.
+
+files_exist:
+  - PLAN.md
+  - package.json
+  - src/index.ts
+
+# grep_must: at least one matched file must contain the pattern. A glob that matches zero files
+# is a failure (the file that should carry the pattern doesn't exist).
+grep_must:
+  - file_glob: "PLAN.md"
+    pattern: "[Uu]nisphere:\\**\\s*unisphere\\.widget\\.video-summary"
+    note: "PLAN.md phase-0 line names the matched runtime, not 'no Unisphere runtime covers this'."
+  - file_glob: "package.json"
+    pattern: "@playkit-js/unisphere-service"
+    note: "The consumer plugin depends on the service plugin, not on @unisphere/runtime-js directly."
+  - file_glob: "src/**/*.ts"
+    pattern: "getService\\(\\s*['\"]unisphereService['\"]"
+    note: "Workspace access goes through player.getService('unisphereService'), never a second workspace load."
+  - file_glob: "src/**/*.ts"
+    pattern: "unisphere\\.widget\\.video-summary"
+    note: "The widget id is read from the runtime the plugin targets, not left implicit."
+  - file_glob: "src/**/*.ts"
+    pattern: "super\\.destroy\\(\\)"
+
+# grep_must_not: if any matched file contains the pattern, that's a failure. A glob matching zero
+# files trivially passes (nothing to violate).
+grep_must_not:
+  - file_glob: "src/**/*.ts"
+    pattern: "@unisphere/runtime-js"
+    note: "Never import the runtime loader directly; go through unisphere-service."
+  - file_glob: "src/**/*.ts"
+    pattern: "fetchAndLoadUnisphereWorkspace"
+    note: "Never load a second workspace; one already exists on the host page."
+  - file_glob: "src/**/*.ts"
+    pattern: "getUnisphereInstance"
+  - file_glob: "src/**/*.ts"
+    pattern: "unisphere\\.widget\\.genie"
+    note: "This case targets video-summary, not Genie; a mismatch means the wrong runtime was picked."
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.Event\\.Error\\b"
+    note: "player.Event.Error does not exist (research finding); errors go on player.Event.Core.ERROR."
+
+# commands_exit_0: run in the workdir. If package.json has no such npm script, the grader records
+# SKIP for that command instead of FAIL (see evals/README.md "Skips are not passes").
+# The live e2e suite for this branch needs a real Unisphere loader URL (research §14 gap): plan §4
+# phase 3 and §8 item 4 allow it to be skipped, so it carries skip_if_env_unset instead of failing
+# the whole case when that var is missing. A skip here must still be named in PLAN.md (rubric.md
+# criterion 4 checks that, since it's a "did the agent say so" check, not a file-content check).
+commands_exit_0:
+  - "npm ci"
+  - "npm run build"
+  - "npm run lint"
+  - "npm test"
+  - cmd: "npm run test:e2e"
+    skip_if_env_unset: "UNISPHERE_LOADER_URL"

@@ -1,0 +1,71 @@
+{
+  "root": true,
+  "parser": "@typescript-eslint/parser",
+  "parserOptions": {
+    "ecmaVersion": 2019,
+    "sourceType": "module",
+    "project": "./tsconfig.json"
+  },
+  "plugins": ["@typescript-eslint", "prettier"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended", "prettier"],
+  "env": {
+    "browser": true,
+    "es2019": true
+  },
+  "rules": {
+    "prettier/prettier": "error",
+    "max-len": ["error", {"code": 150}],
+    "no-console": "error",
+    "@typescript-eslint/explicit-member-accessibility": "error",
+    "@typescript-eslint/no-explicit-any": "warn",
+    "no-restricted-properties": [
+      "error",
+      {
+        "property": "innerHTML",
+        "message": "innerHTML assignment is blocked under an enforcing Trusted Types CSP. Build DOM nodes or use textContent."
+      },
+      {
+        "property": "outerHTML",
+        "message": "outerHTML assignment is blocked under an enforcing Trusted Types CSP. Build DOM nodes instead."
+      },
+      {
+        "object": "document",
+        "property": "write",
+        "message": "document.write() is blocked under an enforcing Trusted Types CSP. Use DOM APIs instead."
+      },
+      {
+        "object": "document",
+        "property": "writeln",
+        "message": "document.writeln() is blocked under an enforcing Trusted Types CSP. Use DOM APIs instead."
+      },
+      {
+        "property": "srcdoc",
+        "message": "srcdoc assignment is blocked under an enforcing Trusted Types CSP. It is the same class of string-to-markup sink as innerHTML, on an iframe."
+      }
+    ],
+    "no-restricted-syntax": [
+      "error",
+      {
+        "selector": "CallExpression[callee.name='eval']",
+        "message": "eval() is blocked under an enforcing Trusted Types CSP. Do not use it."
+      },
+      {
+        "selector": "NewExpression[callee.name='Function']",
+        "message": "new Function() is blocked under an enforcing Trusted Types CSP. Do not use it."
+      },
+      {
+        "selector": "CallExpression[callee.property.name='insertAdjacentHTML']",
+        "message": "insertAdjacentHTML() is blocked under an enforcing Trusted Types CSP. Build DOM nodes instead."
+      },
+      {
+        "selector": "AssignmentExpression[left.property.name='src'][left.object.name=/[Ss]cript/]",
+        "message": "Assigning to a <script> element's src is blocked under an enforcing Trusted Types CSP."
+      },
+      {
+        "selector": "AssignmentExpression[left.property.name='text'][left.object.name=/[Ss]cript/]",
+        "message": "Assigning to a <script> element's text is blocked under an enforcing Trusted Types CSP."
+      }
+    ]
+  },
+  "ignorePatterns": ["dist/", "node_modules/", "*.d.ts"]
+}

@@ -1,0 +1,76 @@
+# Code-graded checks for the side-panel-ui e2e case.
+# Grader: evals/grade.py e2e --case-dir evals/e2e/side-panel-ui --workdir <generated-repo>
+# All paths below are relative to the generated plugin repo root (the workdir), not this file.
+
+case: side-panel-ui
+description: >
+  Chapters-from-cue-points side panel. No Unisphere runtime matches, so the branch is side-panel UI
+  built on the services registry. Plan §8 item 8: ships a second locale.
+
+files_exist:
+  - PLAN.md
+  - package.json
+  - src/index.ts
+  - translations/en.i18n.json
+  - README.md
+  - docs/guide.md
+  - demo/index.html
+  # Plan §8 item 8: en plus at least one more locale, so at least 2 files must match this glob.
+  - glob: "translations/*.i18n.json"
+    min_count: 2
+
+grep_must:
+  - file_glob: "PLAN.md"
+    pattern: "[Uu]nisphere:\\**\\s*no [Uu]nisphere runtime covers this"
+    note: "Phase-0 line must record the negative Unisphere check, not skip it."
+  - file_glob: "PLAN.md"
+    pattern: "side-panel"
+  - file_glob: "package.json"
+    pattern: "@playkit-js/ui-managers"
+    note: "Side-panel UI is built on the services registry / ui-managers, not ui.addComponent."
+  - file_glob: "src/**/*.ts"
+    pattern: "(getService|hasService)\\(\\s*(['\"]sidePanelsManager['\"]|[A-Z_][A-Z0-9_]*)\\s*\\)"
+    note: "Accepts a literal 'sidePanelsManager' or a same-file constant (e.g. SIDE_PANELS_MANAGER_SERVICE_NAME) holding that name."
+  - file_glob: "src/**/*.ts"
+    pattern: "['\"]sidePanelsManager['\"]"
+    note: "The literal service name must appear in real code somewhere (e.g. the constant's declaration), not only in a comment."
+  - file_glob: "src/**/*.ts"
+    pattern: "isValid\\(\\)\\s*[:{]"
+    note: "isValid() takes no args (research finding; the upstream docs show a stale signature)."
+  - file_glob: "src/**/*.ts"
+    pattern: "super\\.destroy\\(\\)"
+  - file_glob: "test/**/*.test.ts"
+    pattern: "disable"
+    note: "A lifecycle test exercises the disable: true config path (plan §4 phase 3)."
+  - file_glob: "e2e/**/*.ts"
+    pattern: "ui\\.locale"
+    note: "An e2e case sets a non-en locale and asserts the translated string renders (plan §4 phase 3)."
+  - file_glob: "e2e/**/*"
+    pattern: "securitypolicyviolation"
+    note: >-
+      The e2e run fails on any Trusted Types CSP violation (plan §6.13). testing-strategy.md's own
+      exit check greps the whole e2e/ dir, not just *.ts: the listener idiomatically registers on
+      the fixture page (HTML) before the player loads, and the spec file reads the result.
+
+grep_must_not:
+  - file_glob: "src/**/*.ts"
+    pattern: "ui\\.addComponent\\("
+    note: "Side-panel UI does not use the component-UI mechanism."
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.Event\\.Error\\b"
+  - file_glob: "src/**/*.ts"
+    pattern: "innerHTML\\s*="
+    note: "Trusted Types sink ban (plan §6.13); the security-checklist bans these in src/."
+  - file_glob: "src/**/*.ts"
+    pattern: "\\beval\\("
+
+commands_exit_0:
+  - "npm ci"
+  - "npm run build"
+  - "npm run lint"
+  - "npm test"
+  - "npm run test:e2e"
+
+# Note: the grep_must entries above check that the e2e test *files* contain the right assertions.
+# Whether the actual browser run stayed clean (zero securitypolicyviolation events, translated
+# string rendered) is read from the "npm run test:e2e" exit code above, not re-implemented here.

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>playkit-js-plugin-template demo</title>
+  <!--
+    Same enforcing CSP the e2e page proves against in CI (reference/security-checklist.md §3,
+    reference/docs-and-demo.md §5). A static demo page can't set a response header the way the
+    e2e dev server can, so this meta tag is the primary enforcement mechanism here, not a fallback.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="require-trusted-types-for 'script'" />
+  <style>
+    html, body { margin: 0; padding: 0; font-family: sans-serif; }
+    #player-placeholder { width: 640px; height: 360px; }
+  </style>
+</head>
+<body>
+  <h1>playkit-js-plugin-template</h1>
+  <p>
+    Rename this scaffold before shipping -- see <code>templates/README.md</code> for the checklist.
+    This demo runs with zero Kaltura network dependency (mock provider, local <code>media/video.mp4</code>).
+  </p>
+  <div id="player-placeholder"></div>
+
+  <script>
+    window.__cspViolations = [];
+    document.addEventListener('securitypolicyviolation', function (event) {
+      window.__cspViolations.push(event.violatedDirective);
+      // eslint-disable-next-line no-console -- demo-only diagnostic, not shipped plugin code.
+      console.error('CSP violation:', event.violatedDirective, event.blockedURI);
+    });
+  </script>
+
+  <!--
+    Pinned to the exact devDependency version this plugin was built and tested against
+    (npm view @playkit-js/kaltura-player-js version). Never @latest here (reference/docs-and-demo.md §5).
+  -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/@playkit-js/kaltura-player-js@3.17.97/dist/kaltura-ovp-player.js"
+    integrity="sha384-rJq6vrsvQcQCQQXhUm3eq6hcD7a6paHwccVI7swEu0sDSLhHIrOP0eHb6A7krsL+"
+    crossorigin="anonymous"
+  ></script>
+  <!--
+    This plugin's own bundle. No release exists yet, so this loads the local build
+    (`npm run build` from the repo root). Once a release is tagged, switch this to the pinned
+    jsDelivr tag documented in README.md's "Install" section
+    (https://cdn.jsdelivr.net/gh/<org>/<repo>@vX.Y.Z/dist/playkit-js-plugin-template.js), with an
+    SRI hash computed against that exact file.
+  -->
+  <script src="../dist/playkit-js-plugin-template.js"></script>
+
+  <script>
+    (function () {
+      try {
+        var kalturaPlayer = KalturaPlayer.setup({
+          targetId: 'player-placeholder',
+          provider: {
+            // Mock provider: no Kaltura network dependency
+            // (reference/testing-strategy.md, "Default to the mock provider").
+            partnerId: -1,
+            env: {
+              cdnUrl: 'http://mock-cdn',
+              serviceUrl: 'http://mock-api'
+            }
+          },
+          plugins: {
+            pluginTemplate: {}
+          }
+        });
+
+        kalturaPlayer.setMedia({
+          sources: {
+            id: 'demo-entry-1',
+            type: 'Vod',
+            duration: 5,
+            dvr: false,
+            progressive: [
+              {
+                id: 'demo-source-1',
+                mimetype: 'video/mp4',
+                url: '../media/video.mp4'
+              }
+            ],
+            dash: [],
+            hls: [],
+            image: [],
+            document: [],
+            metadata: {}
+          }
+        });
+        kalturaPlayer.load();
+      } catch (caught) {
+        // eslint-disable-next-line no-console -- demo-only diagnostic, not shipped plugin code.
+        console.error('Demo setup failed:', caught);
+      }
+    })();
+  </script>
+</body>
+</html>

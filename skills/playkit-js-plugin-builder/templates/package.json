@@ -1,0 +1,44 @@
+{
+  "name": "playkit-js-plugin-template",
+  "version": "0.1.0",
+  "description": "Community-mode scaffold for a Kaltura PlayKit-JS plugin. Rename before shipping — see templates/README.md.",
+  "license": "MIT",
+  "main": "dist/playkit-js-plugin-template.js",
+  "types": "dist/tsc-out/index.d.ts",
+  "files": [
+    "dist",
+    "translations",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "lint": "eslint 'src/**/*.ts'",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "pretest:e2e": "npm run build",
+    "test:e2e": "playwright test",
+    "release": "bash scripts/release.sh"
+  },
+  "devDependencies": {
+    "@playkit-js/kaltura-player-js": "3.17.97",
+    "@playwright/test": "^1.48.0",
+    "@typescript-eslint/eslint-plugin": "^8.0.0",
+    "@typescript-eslint/parser": "^8.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-prettier": "^5.2.1",
+    "jsdom": "^25.0.1",
+    "prettier": "^3.3.3",
+    "standard-version": "^9.5.0",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11",
+    "webpack": "^5.94.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "peerDependencies": {
+    "@playkit-js/kaltura-player-js": ">=3.17.0"
+  }
+}

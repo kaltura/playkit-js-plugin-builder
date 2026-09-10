@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions: {}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<sha>          # v5.x.x
+      - uses: actions/setup-node@<sha>        # v5.x.x
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run type-check
+      - run: npm run lint
+      - run: npm test
+
+  e2e:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<sha>
+      - uses: actions/setup-node@<sha>
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      # npm 12 default-denies install scripts: the Playwright postinstall browser download
+      # no-ops silently under npm ci. Install browsers explicitly.
+      - run: npx playwright install --with-deps
+      - run: npm run test:e2e
+
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@<sha>
+      - uses: actions/setup-node@<sha>
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm audit --omit=dev --audit-level=high
+      - uses: google/osv-scanner-action/osv-scanner-action@<sha>   # vX.Y.Z
+        with:
+          scan-args: |-
+            --lockfile=./package-lock.json
+
+  pages:
+    needs: [build, e2e, audit]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@<sha>
+      - uses: actions/configure-pages@<sha>   # v5.x.x
+      - uses: actions/upload-pages-artifact@<sha>   # v3.x.x
+        with:
+          path: docs
+      - id: deployment
+        uses: actions/deploy-pages@<sha>   # v4.x.x

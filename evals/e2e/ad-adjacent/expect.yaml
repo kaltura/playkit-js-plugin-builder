@@ -1,0 +1,49 @@
+# Code-graded checks for the ad-adjacent e2e case.
+# Grader: evals/grade.py e2e --case-dir evals/e2e/ad-adjacent --workdir <generated-repo>
+# All paths below are relative to the generated plugin repo root (the workdir), not this file.
+
+case: ad-adjacent
+description: >
+  Pause-triggered overlay banner. A component-UI plugin: a small always-in-a-fixed-area control,
+  not a dedicated panel, so it uses ui.addComponent rather than the services registry.
+
+files_exist:
+  - PLAN.md
+  - package.json
+  - src/index.ts
+
+grep_must:
+  - file_glob: "PLAN.md"
+    pattern: "[Uu]nisphere:\\**\\s*no [Uu]nisphere runtime covers this"
+  - file_glob: "PLAN.md"
+    pattern: "component"
+  - file_glob: "src/**/*.ts"
+    pattern: "ui\\.addComponent\\("
+  - file_glob: "src/**/*.ts"
+    pattern: "this\\.eventManager\\.listen\\("
+    note: "Play/pause is observed through eventManager so destroy() cleanup reaches it."
+  - file_glob: "src/**/*.ts"
+    pattern: "isValid\\(\\)\\s*[:{]"
+  - file_glob: "src/**/*.ts"
+    pattern: "super\\.destroy\\(\\)"
+  - file_glob: "src/**/*.ts"
+    pattern: "reset\\s*\\(\\s*\\)\\s*[:{]"
+    note: "The remove function addComponent returns must be called on reset() too, not only destroy() (the template's known leak)."
+
+grep_must_not:
+  - file_glob: "src/**/*.ts"
+    pattern: "getService\\(\\s*['\"]sidePanelsManager['\"]"
+    note: "This is a component-UI overlay, not a side panel; using the panel service is a branch mismatch."
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.addEventListener\\("
+  - file_glob: "src/**/*.ts"
+    pattern: "player\\.Event\\.Error\\b"
+  - file_glob: "src/**/*.ts"
+    pattern: "innerHTML\\s*="
+
+commands_exit_0:
+  - "npm ci"
+  - "npm run build"
+  - "npm run lint"
+  - "npm test"
+  - "npm run test:e2e"
