@@ -76,6 +76,24 @@ Every plugin extends `BasePlugin`. Full surface:
 
 Design rule: a plugin that must block playback on failure cannot rely on a rejected `ready`. It has to dispatch a CRITICAL error itself.
 
+### 3.1 `getEngineDecorator()` as the path to the real engine / `hls.js` instance (added post-v1, live-verified)
+
+No public `Player`-level getter exposes the engine or a raw `hls.js` instance (`Player._engine` is
+`private`, `src/player.ts`; no `getEngine`/`getAdapter`/`getHls` method exists in
+`@playkit-js/kaltura-player-js` or `@playkit-js/playkit-js`, checked at `0.84.33`/`0.84.50` and
+`kaltura-player-js@3.17.97`). The verified path: `getEngineDecorator(engine)` receives the live `Html5`
+engine object; `Html5.mediaSourceAdapter` is a **public** getter (`playkit-js/src/engines/html5/html5.ts:275-277`)
+returning the active adapter; `HlsAdapter` stores the real instance as `private _hls!: Hls;`
+(`playkit-js-hls/src/hls-adapter.ts:77` — TS-private only, absent from any published `.d.ts`, readable
+at runtime via a local structural type). Confirmed working end-to-end in a real generated plugin
+(`playkit-js-captionhub-plugin`, `CaptionHubTimbraPlugin.ts`, wrapping `@captionhub/timbra.js`'s
+`Timbra.HLSJSPlugin`, which requires the live `Hls` instance in its constructor). Separately,
+hls.js-derived *events* (not the instance) are already forwarded to the public player: `player.ts`'s
+`_eventManager.listen(this._engine, CustomEventType.X, (event) => this.dispatchEvent(event))` forwards
+`FRAG_LOADED`, `TIMED_METADATA_ADDED`, `MANIFEST_LOADED`, and others (confirmed by reading the
+forwarding list directly) — those reach `player.addEventListener(player.Event.Core.X, ...)` with no
+engine decorator needed. Full pattern and code: `reference/base-plugin-api.md` §7b.
+
 ## 4. Error and event taxonomy (playkit-js `src/error/*`, kaltura-player-js `kaltura-player.ts:840-851`)
 
 - Constructor: `new Error(severity, category, code, data = {}, errorDetails?)`. Five arguments. Constructing an Error **always logs**, even if never dispatched.

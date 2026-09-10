@@ -131,8 +131,12 @@ prompt gives a concrete reason, not by default:
 
 - **`getMiddlewareImpl()`**: only when the plugin must gate `play`/`pause`/`load` itself (for
   example, a pre-roll or consent gate). It's pushed onto `_localPlayer.playbackMiddleware`.
-- **`getEngineDecorator()`**: only when the plugin wraps the media engine itself. Rare; most UI and
-  event-bridge plugins never need it.
+- **`getEngineDecorator()`**: only when the plugin wraps the media engine itself, **or** needs a
+  reference to the real engine/`hls.js` instance (e.g. a third-party SDK whose constructor requires the
+  live adapter, not just its derived events — `reference/base-plugin-api.md` §7b has the verified
+  path and a real example). Rare; most UI and event-bridge plugins never need it. Don't reach for it
+  just to read hls.js-derived *data*: events like `FRAG_LOADED`/`TIMED_METADATA_ADDED` already reach
+  `player.addEventListener` directly, no engine decorator required.
 - **`get ready()`** override: only for a true async dependency the plugin cannot function without
   (loading a third-party SDK, fetching remote config). Note the trap from research §3: a rejected
   `ready` is swallowed (debug log only, playback continues); it delays playback on a slow resolve,

@@ -182,10 +182,69 @@ and it's picked up automatically; omit it and nothing happens (no error, no warn
 |---|---|---|
 | `getMiddlewareImpl()` | Return value pushed onto `_localPlayer.playbackMiddleware` (unshifted, i.e. run first, if the plugin's registered name is `bumper`) | Undocumented upstream. Used for engine-level playback interception (pre-roll bumpers, DRM gating). |
 | `getUIComponents()` | Each item in the returned array is passed to `_uiWrapper.addComponent()` | The upstream `docs/writing-a-plugin.md` describes this hook incorrectly (research §15: it is not "merged into `config.ui.uiComponents`"). Prefer calling `this.player.ui.addComponent(...)` directly from `loadMedia()` instead of implementing this hook; that's what the official template and most real plugins do (research §8, §6.1). Implement `getUIComponents()` only if you specifically need components registered before `loadMedia()` runs. |
-| `getEngineDecorator()` | If present, `registerEngineDecoratorProvider(new EngineDecoratorProvider(plugin))` is called; only method existence is checked, not a specific interface it must satisfy beyond what `EngineDecoratorProvider` expects | Used for plugins that need to intercept engine-level playback calls (advanced ad insertion, custom stream stitching). Rare; most plugins need none of these three hooks. |
+| `getEngineDecorator(engine)` | If present, `registerEngineDecoratorProvider(new EngineDecoratorProvider(plugin))` is called; only method existence is checked, not a specific interface it must satisfy beyond what `EngineDecoratorProvider` expects | Used for plugins that need to intercept engine-level playback calls (advanced ad insertion, custom stream stitching) **or that need a reference to the live engine object for any other reason** — see §7b. Rare; most plugins need none of these three hooks. |
 
 If a plugin implements none of these hooks, that's the common case, not a gap. Only add one when a
 concrete requirement needs it.
+
+## 7b. Reaching the real `hls.js` instance: `getEngineDecorator()` → `mediaSourceAdapter` → `_hls`
+
+Live-verified against installed `@playkit-js/playkit-js@0.84.33` and `@playkit-js/playkit-js-hls@1.33.1`
+source, and against a real generated plugin that uses this path
+(`playkit-js-captionhub-plugin`, `CaptionHubTimbraPlugin.ts`). No public `Player`-level getter exposes
+the engine or the raw `hls.js` instance (`Player._engine` is `private`, confirmed by grep across
+`src/player.ts`, and no `getEngine`/`getAdapter`/`getHls` method exists). The path that does work goes
+through the duck-typed hook, not the player:
+
+1. Implement `getEngineDecorator(engine: unknown)` (§7). The framework calls it with the live engine
+   object (an `Html5` instance) and captures your return value as the engine-decorator proxy — but the
+   argument you receive is the thing to keep, not the return value.
+2. `Html5` has a **public** getter, `get mediaSourceAdapter(): IMediaSourceAdapter | null` (real source
+   at `playkit-js/src/engines/html5/html5.ts:275-277`), returning the active adapter (`HlsAdapter`,
+   `DashAdapter`, etc. depending on the stream).
+3. `HlsAdapter` stores the real `hls.js` instance as `private _hls!: Hls;` (`playkit-js-hls/src/hls-adapter.ts:77`).
+   TypeScript's `private` is compile-time only — it doesn't exist at runtime, and it doesn't appear on
+   any published `.d.ts` surface either, so there's no type to import. Declare your own minimal
+   structural interface (`{_hls?: unknown}`) and feature-detect the result rather than trusting a cast:
+
+```ts
+interface MediaSourceAdapterWithHls { _hls?: unknown; }
+interface EngineLike { mediaSourceAdapter?: MediaSourceAdapterWithHls | null; }
+
+function isHlsInstance(value: unknown): value is Hls {
+  if (typeof value !== 'object' || value === null) return false;
+  const c = value as Record<string, unknown>;
+  return typeof c.on === 'function' && typeof c.loadSource === 'function' && typeof c.attachMedia === 'function';
+}
+
+public getEngineDecorator(engine: unknown): EngineDecoratorLike {
+  this._engine = engine as EngineLike;
+  return {active: false, dispatchEvent: () => false}; // pure observer, never intercepts playback
+}
+
+// later, e.g. in loadMedia():
+const hls = this._engine?.mediaSourceAdapter?._hls;
+if (!isHlsInstance(hls)) { /* not on HLS this session (e.g. DASH) — degrade, don't throw */ return; }
+```
+
+- **Feature-detect, don't assume.** `mediaSourceAdapter` is whichever adapter is active for the current
+  stream; on a DASH source it won't be an `HlsAdapter` and won't have `_hls`. Treat a missing/non-HLS
+  adapter as a normal degrade path (log once, skip the feature), not an error.
+- **Timing**: `getEngineDecorator()` is *not* guaranteed to run before `loadMedia()`. Engine construction
+  can be asynchronous relative to the plugin manager's `loadMedia()` pass, and `getEngineDecorator()` is
+  skipped entirely on a same-engine-type media change (the framework's `Engine.restore()` reuses the
+  existing engine object instead of calling the hook again). Code that needs the engine must handle both
+  "engine already captured" and "engine not captured yet" — e.g. set a pending-start flag in the latter
+  case and retry from `getEngineDecorator()` once it actually fires. Never assume ordering.
+- **Return `{active: false, dispatchEvent: () => false}`** (or equivalent) unless the plugin genuinely
+  needs to intercept playback calls (§7's table). Returning an inert decorator keeps this purely an
+  observation channel; the engine's real playback path is unaffected.
+- This is the pattern to reach for whenever a plugin needs the actual `hls.js`/`dash.js`/etc. instance —
+  for example, wrapping a third-party SDK whose constructor requires the real player-engine object, not
+  just its derived events. Don't reach for it just to listen to hls.js-originated *data*: `FRAG_LOADED`,
+  `TIMED_METADATA_ADDED`, and similar are already forwarded to the public player event bus (confirmed in
+  `player.ts`'s `_eventManager.listen(this._engine, CustomEventType.X, ...)` calls) and are reachable via
+  plain `player.addEventListener(player.Event.Core.X, ...)` — no engine-decorator hook needed for those.
 
 ## 8. `registerPlugin` and the plugin manager
 
